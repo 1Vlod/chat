@@ -1,0 +1,4 @@
+{
+  "welcomeMessage": "Hello!\nThis cli is used for chat with other people.\nYou can find other commands by writing 'help'.\n You should write a port you want to connect to\n",
+  "PORT": "PORT (default: 8080): "
+}
