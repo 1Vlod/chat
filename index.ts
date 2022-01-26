@@ -1,28 +1,37 @@
-import * as http from 'http';
 import * as stream from 'stream';
-import * as crypto from 'crypto';
+import * as net from 'net';
 
 export class SocketServer {
-  private HANDSHAKE_CONSTANT = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+  private connections: Set<stream.Duplex> = new Set();
+
   constructor(private port: number) {
-    http
-      .createServer()
-      .on('upgrade', (request: http.IncomingMessage, socket: stream.Duplex) => {
-        const clientKey = request.headers['sec-websocket-key'];
-        const handshakeKey = crypto
-          .createHash('sha1')
-          .update(clientKey + this.HANDSHAKE_CONSTANT)
-          .digest('base64');
-        const responseHeaders = [
-          'HTTP/1.1 101',
-          'upgrade: websocket',
-          'connection: upgrade',
-          `sec-webSocket-accept: ${handshakeKey}`,
-          '\r\n',
-        ];
-        socket.write(responseHeaders.join('\r\n'));
+    net
+      .createServer((socket: net.Socket) => {
+        console.log(socket.address());
+        console.log('connected');
+
+        this.connections.add(socket);
+        this.connections.forEach((socket) => {
+          socket.write(
+            Buffer.from(
+              `Подключился новый участник чата. Всего в чате ${this.connections.size} \n`
+            )
+          );
+        });
+
+        socket.on('data', (data) => {
+          const msg = data.toString();
+          console.log(msg);
+
+          if (msg) {
+            this.connections.forEach((socket) => {
+              socket.write(Buffer.from(msg));
+            });
+          }
+        });
       })
       .listen(this.port);
+
     console.log('server start on port: ', this.port);
   }
 }
