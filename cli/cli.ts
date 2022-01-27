@@ -3,6 +3,7 @@ import net from 'net';
 import { stdin as input, stdout as output } from 'process';
 
 import cliHardcode from './cliHardcode.json';
+import { COMMANDS } from '../infrastructure/constants';
 
 class CliClient {
   private rl;
@@ -16,6 +17,7 @@ class CliClient {
   constructor() {
     this.rl = readline.createInterface({ input, output });
     this.rl.write(cliHardcode.welcomeMessage);
+
     this.rl.question(cliHardcode.PORT, (port) => {
       this.connectionInfo.port ||= +port;
 
@@ -47,21 +49,40 @@ class CliClient {
     });
 
     this.sendMessage(
-      `set:${this.connectionInfo.name}:${this.connectionInfo.room}`
+      `${COMMANDS.INIT}:${this.connectionInfo.room}:${this.connectionInfo.name}`
     );
+    setTimeout(() => {
+      this.sendMessage(
+        `${COMMANDS.HST}:${this.connectionInfo.room}:${this.connectionInfo.name}`
+      );
+    }, 1000);
 
     this.rl.addListener('line', (answer) => {
-      const [cmd, message] = answer.split(':');
-
-      if (cmd === 'end') {
-        this.socket!.end();
-        this.rl.close();
-      }
-
-      if (cmd === 'msg') {
-        this.sendMessage(
-          `${cmd}:${this.connectionInfo.name}:${this.connectionInfo.room}:${message}`
-        );
+      const elem = answer.split(':');
+      switch (elem[0]) {
+        case COMMANDS.END: {
+          this.socket!.end();
+          this.rl.close();
+          break;
+        }
+        case COMMANDS.CHR: {
+          this.sendMessage(
+            `${COMMANDS.CHR}:${this.connectionInfo.room}:${this.connectionInfo.name}:${elem[1]}`
+          );
+          this.connectionInfo.room = elem[1];
+          break;
+        }
+        case COMMANDS.LSU: {
+          this.sendMessage(
+            `${COMMANDS.LSU}:${this.connectionInfo.room}:${this.connectionInfo.name}`
+          );
+          break;
+        }
+        default: {
+          this.sendMessage(
+            `${COMMANDS.MSG}:${this.connectionInfo.room}:${this.connectionInfo.name}:${elem[0]}`
+          );
+        }
       }
     });
   }

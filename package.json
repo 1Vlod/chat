@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.ts",
-    "start-cli": "ts-node cli/script.ts"
+    "start": "nodemon server/index.ts",
+    "start-cli": "ts-node cli/cli.ts"
   },
   "author": "Vlod",
   "license": "ISC",
