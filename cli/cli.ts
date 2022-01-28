@@ -98,3 +98,7 @@ class CliClient {
 }
 
 new CliClient();
+
+process.on('SIGINT', () => {
+  process.exit(0);
+});

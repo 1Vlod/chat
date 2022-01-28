@@ -6,7 +6,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server/index.ts",
-    "start-cli": "ts-node cli/cli.ts"
+    "start-cli": "ts-node cli/cli.ts",
+    "build": "tsc",
+    "start:build": "node dist/server/index.js",
+    "start-cli:build": "node dist/cli/cli.js"
   },
   "author": "Vlod",
   "license": "ISC",

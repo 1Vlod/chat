@@ -180,3 +180,7 @@ export class SocketServer {
 }
 
 new SocketServer(8080);
+
+process.on('SIGINT', () => {
+  process.exit(0);
+});
