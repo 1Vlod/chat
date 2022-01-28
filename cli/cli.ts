@@ -4,6 +4,7 @@ import { stdin as input, stdout as output } from 'process';
 
 import cliHardcode from './cliHardcode.json';
 import { COMMANDS } from '../infrastructure/constants';
+import { IPayload, Optional } from '../infrastructure/interfaces';
 
 class CliClient {
   private rl;
@@ -40,22 +41,22 @@ class CliClient {
     });
   }
 
-  private init() {
+  private async init() {
     this.socket = new net.Socket();
-    this.socket.connect(this.connectionInfo.port);
+    this.socket.connect(this.connectionInfo.port, 'localhost', () => {
+      this.sendMessage({
+        cmd: COMMANDS.INIT,
+      });
+      setTimeout(() => {
+        this.sendMessage({
+          cmd: COMMANDS.HST,
+        });
+      }, 500);
+    });
 
     this.socket.on('data', function (d) {
       console.log(d.toString());
     });
-
-    this.sendMessage(
-      `${COMMANDS.INIT}:${this.connectionInfo.room}:${this.connectionInfo.name}`
-    );
-    setTimeout(() => {
-      this.sendMessage(
-        `${COMMANDS.HST}:${this.connectionInfo.room}:${this.connectionInfo.name}`
-      );
-    }, 1000);
 
     this.rl.addListener('line', (answer) => {
       const elem = answer.split(':');
@@ -66,29 +67,29 @@ class CliClient {
           break;
         }
         case COMMANDS.CHR: {
-          this.sendMessage(
-            `${COMMANDS.CHR}:${this.connectionInfo.room}:${this.connectionInfo.name}:${elem[1]}`
-          );
+          this.sendMessage({ cmd: COMMANDS.CHR, targetRoom: elem[1] });
           this.connectionInfo.room = elem[1];
           break;
         }
         case COMMANDS.LSU: {
-          this.sendMessage(
-            `${COMMANDS.LSU}:${this.connectionInfo.room}:${this.connectionInfo.name}`
-          );
+          this.sendMessage({ cmd: COMMANDS.LSU });
+          break;
+        }
+        case COMMANDS.HELP: {
+          console.log(cliHardcode.help);
           break;
         }
         default: {
-          this.sendMessage(
-            `${COMMANDS.MSG}:${this.connectionInfo.room}:${this.connectionInfo.name}:${elem[0]}`
-          );
+          this.sendMessage({ cmd: COMMANDS.MSG, text: elem[0] });
         }
       }
     });
   }
 
-  private sendMessage(msg: string) {
-    this.socket!.write(Buffer.from(msg));
+  private sendMessage(payload: Optional<IPayload, 'nick' | 'room'>) {
+    payload.room = this.connectionInfo.room;
+    payload.nick = this.connectionInfo.name;
+    this.socket!.write(Buffer.from(JSON.stringify(payload)));
   }
 }
 

@@ -6,4 +6,5 @@ export enum COMMANDS {
   HST = 'HST', // history (all messages),
   ERR = 'ERR',
   END = 'END', // only for client
+  HELP = '--help', // only for client
 }

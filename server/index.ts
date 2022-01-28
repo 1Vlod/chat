@@ -1,7 +1,7 @@
 import * as stream from 'stream';
 import * as net from 'net';
 import { COMMANDS } from '../infrastructure/constants';
-import { IConnection } from '../infrastructure/interfaces';
+import { IConnection, IPayload } from '../infrastructure/interfaces';
 
 export class SocketServer {
   private pool = new Set<stream.Duplex>();
@@ -17,44 +17,56 @@ export class SocketServer {
         this.pool.add(socket);
 
         socket.on('data', (data) => {
-          let msg = data.toString();
-          console.log(msg);
-          const [cmd, room, nick, message] = msg.split(':');
+          const message = data.toString();
+          console.log(message);
+          const payload: IPayload = JSON.parse(message);
+          console.log(payload);
 
-          if (!cmd) {
+          if (!payload.cmd || !payload.room || !payload.nick) {
             socket.write(
-              `${COMMANDS.ERR}: You must write a command from commands list`
+              `${COMMANDS.ERR}: You must write a command from commands list in the rigth order.\n`
             );
+            return;
           }
 
-          if (!Object.keys(COMMANDS).includes(cmd) || cmd === COMMANDS.ERR) {
+          if (
+            !Object.keys(COMMANDS).includes(payload.cmd) ||
+            payload.cmd === COMMANDS.ERR
+          ) {
             socket.write(
               `${COMMANDS.ERR}: You must write the right command from commands list`
             );
+            return;
           }
 
-          switch (cmd) {
+          switch (payload.cmd) {
             case COMMANDS.INIT: {
               for (const entry of this.pool.entries()) {
                 if (entry[0] === socket) {
                   console.log('Found');
-                  if (this.roomsUsers.has(room)) {
-                    this.roomsUsers.get(room)!.push({ socket, nick });
+                  if (this.roomsUsers.has(payload.room)) {
+                    this.roomsUsers
+                      .get(payload.room)!
+                      .push({ socket, nick: payload.nick });
                   } else {
-                    this.roomsUsers.set(room, [{ socket, nick }]);
+                    this.roomsUsers.set(payload.room, [
+                      { socket, nick: payload.nick },
+                    ]);
                   }
                   this.pool.delete(socket);
                   break;
                 }
               }
 
-              for (const connection of this.roomsUsers.get(room)!) {
-                if (connection.nick === nick) continue;
+              for (const connection of this.roomsUsers.get(payload.room)!) {
+                if (connection.nick === payload.nick) continue;
 
                 connection.socket.write(
                   Buffer.from(
-                    `В комнату ${room} подключился новый участник ${nick}.\nВсего участников ${
-                      this.roomsUsers.get(room)?.length
+                    `В комнату ${payload.room} подключился новый участник ${
+                      payload.nick
+                    }.\nВсего участников ${
+                      this.roomsUsers.get(payload.room)?.length
                     }`
                   )
                 );
@@ -62,58 +74,93 @@ export class SocketServer {
               break;
             }
             case COMMANDS.HST: {
-              if (this.roomsMessages.has(room)) {
+              if (this.roomsMessages.has(payload.room)) {
                 socket.write(
-                  Buffer.from(this.roomsMessages.get(room)!.join(''))
+                  Buffer.from(this.roomsMessages.get(payload.room)!.join(''))
                 );
               }
               break;
             }
             case COMMANDS.MSG: {
-              const roomMessages = this.roomsMessages.get(room);
-              if (roomMessages?.length) {
-                roomMessages.push(`${nick}: ${message} \n`);
-                console.log('Saved message to room');
-              } else {
-                this.roomsMessages.set(room, [`${nick}: ${message} \n`]);
-                console.log('Created array for messages room # ', room);
+              if (!payload.text) {
+                socket.write(
+                  `${COMMANDS.ERR}: You must write any text in your message.\n`
+                );
+                return;
               }
 
-              for (const user of this.roomsUsers.get(room)!) {
-                if (user.nick === nick) continue;
-                user.socket.write(Buffer.from(`${nick}: ${message}`));
+              const roomMessages = this.roomsMessages.get(payload.room);
+              if (roomMessages?.length) {
+                roomMessages.push(`${payload.nick}: ${payload.text} \n`);
+                console.log('Saved message to room');
+              } else {
+                this.roomsMessages.set(payload.room, [
+                  `${payload.nick}: ${payload.text} \n`,
+                ]);
+                console.log('Created array for messages room # ', payload.room);
+              }
+
+              for (const user of this.roomsUsers.get(payload.room)!) {
+                if (user.nick === payload.nick) continue;
+                user.socket.write(
+                  Buffer.from(`${payload.nick}: ${payload.text}`)
+                );
               }
               break;
             }
             case COMMANDS.CHR: {
-              if (this.roomsUsers.has(message)) {
-                this.roomsUsers.get(message)?.push({ socket, nick });
-                for (const connection of this.roomsUsers.get(message)!) {
-                  if (connection.nick === nick) continue;
+              if (!payload.targetRoom) {
+                socket.write(
+                  `${COMMANDS.ERR}: You must write a targetRoom to change a room.\n`
+                );
+                return;
+              }
+              if (this.roomsUsers.has(payload.targetRoom)) {
+                this.roomsUsers
+                  .get(payload.targetRoom)!
+                  .push({ socket, nick: payload.nick });
+                for (const connection of this.roomsUsers.get(
+                  payload.targetRoom
+                )!) {
+                  if (connection.nick === payload.nick) continue;
 
                   connection.socket.write(
                     Buffer.from(
-                      `В комнату ${message} подключился новый участник ${nick}.\nВсего участников ${
-                        this.roomsUsers.get(message)?.length
+                      `В комнату ${
+                        payload.targetRoom
+                      } подключился новый участник ${
+                        payload.nick
+                      }.\nВсего участников ${
+                        this.roomsUsers.get(payload.targetRoom)?.length
                       }`
                     )
                   );
                 }
 
                 socket.write(
-                  Buffer.from(this.roomsMessages.get(message)!.join(''))
+                  Buffer.from(
+                    this.roomsMessages.get(payload.targetRoom)!.join('')
+                  )
                 );
               } else {
-                this.roomsUsers.set(message, [{ socket, nick }]);
+                this.roomsUsers.set(payload.targetRoom, [
+                  { socket, nick: payload.nick },
+                ]);
               }
 
+              this.roomsUsers.set(
+                payload.room,
+                this.roomsUsers
+                  .get(payload.room)!
+                  .filter((user) => user.nick !== payload.nick)
+              );
               break;
             }
             case COMMANDS.LSU: {
               socket.write(
                 Buffer.from(
                   this.roomsUsers
-                    .get(room)!
+                    .get(payload.room)!
                     .map((userName, i) => `${i}.${userName.nick}`)
                     .join('\n')
                 )
