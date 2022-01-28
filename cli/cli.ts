@@ -10,32 +10,36 @@ class CliClient {
   private rl;
   private connectionInfo = {
     port: 8080,
-    name: 'user1',
+    name: 'user',
     room: 'default',
+    host: 'localhost',
   };
   private socket?: net.Socket;
 
   constructor() {
     this.rl = readline.createInterface({ input, output });
-    this.rl.write(cliHardcode.welcomeMessage);
+    console.log(cliHardcode.welcomeMessage);
 
-    this.rl.question(cliHardcode.PORT, (port) => {
-      this.connectionInfo.port ||= +port;
+    this.rl.question(cliHardcode.host, (host) => {
+      this.connectionInfo.host ||= host;
+      this.rl.question(cliHardcode.PORT, (port) => {
+        this.connectionInfo.port ||= +port;
 
-      this.rl.question('Name: ', (name) => {
-        if (!name) {
-          throw new Error('Name is required');
-        }
-        this.connectionInfo.name = name;
-
-        this.rl.question('Room: ', (room) => {
-          if (!room) {
-            throw new Error('Room is required');
+        this.rl.question('Name: ', (name) => {
+          if (!name) {
+            throw new Error('Name is required');
           }
-          this.connectionInfo.room = room;
+          this.connectionInfo.name = name;
 
-          console.log(this.connectionInfo);
-          this.init();
+          this.rl.question('Room: ', (room) => {
+            if (!room) {
+              throw new Error('Room is required');
+            }
+            this.connectionInfo.room = room;
+
+            console.log(this.connectionInfo);
+            this.init();
+          });
         });
       });
     });

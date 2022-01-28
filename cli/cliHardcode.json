@@ -1,5 +1,6 @@
 {
   "welcomeMessage": "Hello!\nThis cli is used for chat with other people.\nYou can find other commands by writing '--help'.\nYou should write a port you want to connect to\n",
   "PORT": "PORT (default: 8080): ",
-  "help": "Commands list:\nCHR:targetRoom - change room to target room\nUSL - List all users in current room\nend - close cli and disconnect from socket\n\nTo write message to chat you need just write something"
+  "help": "Commands list:\nCHR:targetRoom - change room to target room\nUSL - List all users in current room\nend - close cli and disconnect from socket\n\nTo write message to chat you need just write something",
+  "host": "Host (default: localhost): "
 }
